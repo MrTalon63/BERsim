@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+pydantic
+numpy
+matplotlib
+requests
+PyJWT>=2.0.0
