@@ -266,6 +266,34 @@ def main():
                                 )
                             except Exception:
                                 pass
+                            
+                            # Check if task was cancelled
+                            try:
+                                cancel_check = session.get(
+                                    f"{MASTER_URL}/check_task_cancelled",
+                                    params={
+                                        "worker_id": f"{hostname}-{WORKER_ID}",
+                                        "system": sys_name,
+                                        "ebno": ebno,
+                                    },
+                                    timeout=5,
+                                )
+                                if cancel_check.status_code == 200:
+                                    cancel_data = cancel_check.json()
+                                    if cancel_data.get("cancelled"):
+                                        print(f"\n[CANCEL] Task {sys_name} @ {ebno} dB has been cancelled. Terminating subprocess...")
+                                        proc.terminate()
+                                        try:
+                                            proc.wait(timeout=5)
+                                        except subprocess.TimeoutExpired:
+                                            print("[CANCEL] Subprocess did not terminate; killing it.")
+                                            proc.kill()
+                                            proc.wait()
+                                        print(f"[CANCEL] Task cancelled. Requesting new task...")
+                                        break
+                            except Exception:
+                                pass
+                            
                             last_ping = now
                     except Exception:
                         pass
