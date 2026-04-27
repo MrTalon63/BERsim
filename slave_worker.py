@@ -78,9 +78,20 @@ def main():
     while not stop:
         try:
             r = session.get(f"{MASTER_URL}/get_task?worker_id={hostname}-{WORKER_ID}", timeout=70)
-            data = r.json()
-        except Exception:
-            print("Cannot reach Master server. Retrying in 5 seconds...")
+            r.raise_for_status()
+            try:
+                data = r.json()
+            except ValueError:
+                print("Invalid JSON from Master server; response:", r.text)
+                time.sleep(5)
+                continue
+        except requests.exceptions.RequestException as e:
+            print(f"Cannot reach Master server or HTTP error: {e}. Retrying in 5 seconds...")
+            time.sleep(5)
+            continue
+
+        if not isinstance(data, dict):
+            print("Unexpected response from Master (not JSON object):", data)
             time.sleep(5)
             continue
 
@@ -92,7 +103,11 @@ def main():
             print("All cluster tasks completed! Slave resting.")
             break
 
-        task = data["task"]
+        task = data.get("task")
+        if not task:
+            print("Missing 'task' in Master response:", data)
+            time.sleep(5)
+            continue
         sys_name = task["system"]
         ebno = task["ebno"]
         max_frames = data.get("max_frames", os.environ.get("SIM_MAX_FRAMES", "10000000"))
