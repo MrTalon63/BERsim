@@ -15,6 +15,9 @@ import signal
 import shutil
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from dotenv import load_dotenv
+
+load_dotenv()
 
 MASTER_URL = os.environ.get("MASTER_URL", "test")
 API_KEY = os.environ.get("CLUSTER_API_KEY", "test")
