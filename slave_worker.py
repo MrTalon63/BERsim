@@ -20,8 +20,6 @@ load_dotenv()
 MASTER_URL = os.environ.get("MASTER_URL", "test")
 API_KEY = os.environ.get("CLUSTER_API_KEY", "test")
 HEADERS = {"X-API-Key": API_KEY, "Connection": "keep-alive"}
-WORKER_ID = socket.gethostname()
-
 
 def make_session():
     s = requests.Session()
@@ -125,7 +123,7 @@ def main():
 
     import socket
     hostname = socket.gethostname()
-    print(f"Slave Worker [{hostname}-{WORKER_ID}] starting... Connecting to {MASTER_URL}")
+    print(f"Slave Worker [{hostname}] starting... Connecting to {MASTER_URL}")
     if args.threads > 0:
         print(f"Thread count explicitly set to {args.threads}.")
 
@@ -181,7 +179,7 @@ def main():
 
     while not stop:
         try:
-            r = session.get(f"{MASTER_URL}/get_task?worker_id={hostname}-{WORKER_ID}", timeout=70)
+            r = session.get(f"{MASTER_URL}/get_task?worker_id={hostname}", timeout=70)
             r.raise_for_status()
             try:
                 data = r.json()
@@ -200,7 +198,7 @@ def main():
             continue
 
         if data.get("status") == "wait":
-            print(f"\rNo task available. Slave [{hostname}-{WORKER_ID}] waiting...", end="", flush=True)
+            print(f"\rNo task available. Slave [{hostname}] waiting...", end="", flush=True)
             continue
 
         if data.get("status") == "done":
@@ -256,7 +254,7 @@ def main():
                                 session.post(
                                     f"{MASTER_URL}/update_status",
                                     json={
-                                        "worker_id": f"{hostname}-{WORKER_ID}",
+                                        "worker_id": f"{hostname}",
                                         "system": sys_name,
                                         "ebno": ebno,
                                         "frames": frames,
@@ -273,7 +271,7 @@ def main():
                                 cancel_check = session.get(
                                     f"{MASTER_URL}/check_task_cancelled",
                                     params={
-                                        "worker_id": f"{hostname}-{WORKER_ID}",
+                                        "worker_id": f"{hostname}",
                                         "system": sys_name,
                                         "ebno": ebno,
                                     },
@@ -321,7 +319,7 @@ def main():
             time.sleep(5)
         else:
             payload = {
-                "worker_id": f"{hostname}-{WORKER_ID}",
+                "worker_id": f"{hostname}",
                 "system": sys_name,
                 "ebno": ebno,
                 "ber": result_ber,
