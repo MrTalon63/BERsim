@@ -7,6 +7,7 @@ import time
 import sys
 import uuid
 import os
+import socket
 import argparse
 import signal
 import shutil
@@ -19,7 +20,7 @@ load_dotenv()
 MASTER_URL = os.environ.get("MASTER_URL", "test")
 API_KEY = os.environ.get("CLUSTER_API_KEY", "test")
 HEADERS = {"X-API-Key": API_KEY, "Connection": "keep-alive"}
-WORKER_ID = str(uuid.uuid4())[:8]
+WORKER_ID = socket.gethostname()
 
 
 def make_session():
