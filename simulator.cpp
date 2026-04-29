@@ -22,27 +22,26 @@ struct Chain {
     int K;
     int N_enc;
     int N;
-    
+
     bool is_concat = false;
     int depth = 1;
 
     std::vector<int> pattern;
     std::vector<int> puncture_indices;
     std::vector<int> depuncture_indices;
-    std::vector<std::unique_ptr<uint8_t[]>>      dummy_mem;
-    std::unique_ptr<spu::module::Source<int>>    src;
-    std::shared_ptr<module::Encoder<int>>        enc_ptr;
-    module::Encoder<int>*                        enc;
-    std::unique_ptr<module::Modem<int,float,float>> mdm;
-    std::unique_ptr<module::Channel<float>>      chn;
-    std::shared_ptr<module::Decoder_SIHO<int,float>> dec_ptr;
-    module::Decoder_SIHO<int,float>*             dec;
-    std::unique_ptr<module::Monitor_BFER<int>>   mnt;
-    std::shared_ptr<void>                        cdc;
-
-    std::shared_ptr<void>                        cdc_inner;
-    module::Encoder<int>*                        enc_inner = nullptr;
-    module::Decoder_SIHO<int,float>*             dec_inner = nullptr;
+    std::vector<std::unique_ptr<uint8_t[]>> dummy_mem;
+    std::unique_ptr<spu::module::Source<int>> src;
+    std::shared_ptr<module::Encoder<int>> enc_ptr;
+    module::Encoder<int>* enc;
+    std::unique_ptr<module::Modem<int, float, float>> mdm;
+    std::unique_ptr<module::Channel<float>> chn;
+    std::shared_ptr<module::Decoder_SIHO<int, float>> dec_ptr;
+    module::Decoder_SIHO<int, float>* dec;
+    std::unique_ptr<module::Monitor_BFER<int>> mnt;
+    std::shared_ptr<void> cdc;
+    std::shared_ptr<void> cdc_inner;
+    module::Encoder<int>* enc_inner = nullptr;
+    module::Decoder_SIHO<int, float>* dec_inner = nullptr;
 };
 
 class SystemBuilder {
@@ -67,13 +66,13 @@ public:
 
         c->enc_ptr = std::make_shared<module::Encoder_NO<int>>(c->K);
         c->enc = c->enc_ptr.get();
-        c->mdm.reset(new module::Modem_BPSK<int,float,float>(c->N));
+        c->mdm.reset(new module::Modem_BPSK<int, float, float>(c->N));
         c->chn.reset(new module::Channel_AWGN_LLR<float>(c->N, tools::Gaussian_noise_generator_implem::STD, seed));
-        c->dec_ptr = std::make_shared<module::Decoder_NO<int,float>>(c->K);
+        c->dec_ptr = std::make_shared<module::Decoder_NO<int, float>>(c->K);
         c->dec = c->dec_ptr.get();
-        c->mnt.reset(new module::Monitor_BFER<int>(c->K, 1000)); 
+        c->mnt.reset(new module::Monitor_BFER<int>(c->K, 1000));
 
-                return c;
+        return c;
     }
 };
 
@@ -85,10 +84,7 @@ public:
     std::unique_ptr<Chain> build(int seed = 0) override {
         auto c = std::make_unique<Chain>();
         c->name = "Conv Rate " + rate_name;
-        
-
         c->K = 10494;
-        
 
         factory::Codec_RSC p_cdc;
         p_cdc.K = c->K;
@@ -141,13 +137,13 @@ public:
             for (int b : c->pattern) if (b) sum++;
             c->N = (c->N_enc / c->pattern.size()) * sum;
             int rem = c->N_enc % c->pattern.size();
-            for(int i = 0; i < rem; i++) { if (c->pattern[i]) c->N++; }
-            
+            for (int i = 0; i < rem; i++) { if (c->pattern[i]) c->N++; }
+
             c->puncture_indices.reserve(c->N);
             c->depuncture_indices.reserve(c->N);
             int p_idx = 0;
             int p_size = c->pattern.size();
-            for (int i = 0; i < c->N_enc; ++i) {
+            for (int i = 0; i < c->N_enc; i++) {
                 if (c->pattern[p_idx]) {
                     c->puncture_indices.push_back(i);
                     c->depuncture_indices.push_back(i);
@@ -163,7 +159,7 @@ public:
         p_src.seed = seed;
         c->src.reset(p_src.build<int>());
 
-        c->mdm.reset(new module::Modem_BPSK<int,float,float>(c->N));
+        c->mdm.reset(new module::Modem_BPSK<int, float, float>(c->N));
         c->chn.reset(new module::Channel_AWGN_LLR<float>(c->N, tools::Gaussian_noise_generator_implem::STD, seed));
         c->mnt.reset(new module::Monitor_BFER<int>(c->K, 1000));
 
@@ -179,14 +175,14 @@ public:
     std::unique_ptr<Chain> build(int seed = 0) override {
         auto c = std::make_unique<Chain>();
         c->name = "RS Depth " + std::to_string(depth);
-        
+
         int K_rs = 223 * 8; // 1784 bits
         int N_rs = 255 * 8; // 2040 bits
-        
+
         c->K = K_rs * depth;
         c->N_enc = N_rs * depth;
         c->N = c->N_enc;
-        
+
         factory::Codec_RS p_cdc;
         p_cdc.K = K_rs;
         p_cdc.N_cw = N_rs;
@@ -224,7 +220,7 @@ public:
         p_src.seed = seed;
         c->src.reset(p_src.build<int>());
 
-        c->mdm.reset(new module::Modem_BPSK<int,float,float>(c->N));
+        c->mdm.reset(new module::Modem_BPSK<int, float, float>(c->N));
         c->chn.reset(new module::Channel_AWGN_LLR<float>(c->N, tools::Gaussian_noise_generator_implem::STD, seed));
         c->mnt.reset(new module::Monitor_BFER<int>(c->K, 1000));
 
@@ -243,21 +239,21 @@ public:
         c->name = "Concat " + rate_name + " D" + std::to_string(depth);
         c->is_concat = true;
         c->depth = depth;
-        
+
         int K_rs = 223 * 8; // 1784 bits
         int N_rs = 255 * 8; // 2040 bits
         c->K = K_rs * depth;
-        
+
         factory::Codec_RS p_cdc_rs;
         p_cdc_rs.K = K_rs;
         p_cdc_rs.N_cw = N_rs;
         p_cdc_rs.N = N_rs;
         if (p_cdc_rs.enc.get() != nullptr) { p_cdc_rs.enc->K = 223; p_cdc_rs.enc->N_cw = 255; }
         if (p_cdc_rs.dec.get() != nullptr) { p_cdc_rs.dec->K = 223; p_cdc_rs.dec->N_cw = 255; }
-        
+
         auto p_dec_rs = dynamic_cast<factory::Decoder_RS*>(p_cdc_rs.dec.get());
         if (p_dec_rs) { p_dec_rs->m = 8; p_dec_rs->t = 16; }
-        
+
         auto cdc_rs_ptr = p_cdc_rs.build();
         if (!cdc_rs_ptr) throw std::runtime_error("Failed to build Outer RS Codec!");
         c->cdc.reset(cdc_rs_ptr);
@@ -265,14 +261,14 @@ public:
         c->dec = &cdc_rs_ptr->get_decoder_siho();
 
         int K_conv = N_rs * depth;
-        
+
         factory::Codec_RSC p_cdc_conv;
         p_cdc_conv.K = K_conv;
         p_cdc_conv.N_cw = K_conv * 2 + 12;
         p_cdc_conv.N = p_cdc_conv.N_cw;
         if (p_cdc_conv.enc.get() != nullptr) { p_cdc_conv.enc->K = p_cdc_conv.K; p_cdc_conv.enc->N_cw = p_cdc_conv.N_cw; }
         if (p_cdc_conv.dec.get() != nullptr) { p_cdc_conv.dec->K = p_cdc_conv.K; p_cdc_conv.dec->N_cw = p_cdc_conv.N_cw; }
-        
+
         auto p_enc_conv = dynamic_cast<factory::Encoder_RSC*>(p_cdc_conv.enc.get());
         if (p_enc_conv) { p_enc_conv->poly = {0133, 0171}; p_enc_conv->buffered = false; }
         auto p_dec_conv = dynamic_cast<factory::Decoder_RSC*>(p_cdc_conv.dec.get());
@@ -282,13 +278,13 @@ public:
             p_dec_conv->implem = "STD";
             p_dec_conv->buffered = false;
         }
-        
+
         auto cdc_conv_ptr = p_cdc_conv.build();
         if (!cdc_conv_ptr) throw std::runtime_error("Failed to build Inner Conv Codec!");
         c->cdc_inner.reset(cdc_conv_ptr);
         c->enc_inner = &cdc_conv_ptr->get_encoder();
         c->dec_inner = &cdc_conv_ptr->get_decoder_siho();
-        
+
         c->N_enc = c->enc_inner->get_N();
 
         if (rate_name == "1/2")      c->pattern.clear();
@@ -301,14 +297,14 @@ public:
         if (!c->pattern.empty()) {
             for (int b : c->pattern) if (b) sum++;
             c->N = (c->N_enc / c->pattern.size()) * sum;
-            int rem = c->N_enc % c->pattern.size(); // Catch unaligned tail bits!
-            for(int i = 0; i < rem; i++) { if (c->pattern[i]) c->N++; }
-            
+            int rem = c->N_enc % c->pattern.size(); // Handle tail bits
+            for (int i = 0; i < rem; i++) { if (c->pattern[i]) c->N++; }
+
             c->puncture_indices.reserve(c->N);
             c->depuncture_indices.reserve(c->N);
             int p_idx = 0;
             int p_size = c->pattern.size();
-            for (int i = 0; i < c->N_enc; ++i) {
+            for (int i = 0; i < c->N_enc; i++) {
                 if (c->pattern[p_idx]) {
                     c->puncture_indices.push_back(i);
                     c->depuncture_indices.push_back(i);
@@ -324,7 +320,7 @@ public:
         p_src.seed = seed;
         c->src.reset(p_src.build<int>());
 
-        c->mdm.reset(new module::Modem_BPSK<int,float,float>(c->N));
+        c->mdm.reset(new module::Modem_BPSK<int, float, float>(c->N));
         c->chn.reset(new module::Channel_AWGN_LLR<float>(c->N, tools::Gaussian_noise_generator_implem::STD, seed));
         c->mnt.reset(new module::Monitor_BFER<int>(c->K, 1000));
 
@@ -340,7 +336,7 @@ double get_bpsk_capacity_esno(double esno_linear) {
     int steps = 10000;
     double dy = (2.0 * y_max) / steps;
     double h_y = 0.0;
-    
+
     for (int i = 0; i < steps; ++i) {
         double y = -y_max + i * dy + dy / 2.0;
         double p1 = std::exp(-std::pow(y - 1.0, 2) / (2.0 * sigma * sigma)) / (sigma * std::sqrt(2.0 * PI));
@@ -356,7 +352,7 @@ double get_bpsk_capacity_esno(double esno_linear) {
 
 double calculate_exact_bpsk_shannon_limit(double rate) {
     if (rate >= 1.0 || rate <= 0.0) return std::numeric_limits<double>::infinity();
-    
+
     double low_ebno = 1e-4;
     double high_ebno = 100.0;
     double mid_ebno = 0.0;
@@ -400,7 +396,7 @@ void load_progress(std::vector<std::string>& system_names, std::map<std::string,
     std::stringstream ss_header(line);
     std::string cell;
     std::getline(ss_header, cell, ',');
-    
+
     while (std::getline(ss_header, cell, ',')) {
         cell.erase(std::remove(cell.begin(), cell.end(), '\r'), cell.end());
         cell.erase(std::remove(cell.begin(), cell.end(), '\n'), cell.end());
@@ -411,7 +407,7 @@ void load_progress(std::vector<std::string>& system_names, std::map<std::string,
         if (line.empty()) continue;
         std::stringstream ss(line);
         std::getline(ss, cell, ',');
-        
+
         int sys_idx = 0;
         while (std::getline(ss, cell, ',')) {
             cell.erase(std::remove(cell.begin(), cell.end(), '\r'), cell.end());
@@ -424,12 +420,12 @@ void load_progress(std::vector<std::string>& system_names, std::map<std::string,
             sys_idx++;
         }
     }
-    std::cout << "Resuming existing simulation from data/ber_simulation_results.csv..." << std::endl;
+    std::cout << "Resuming existing simulation..." << std::endl;
 }
 
 void save_progress(const std::vector<float>& ebno_range, const std::vector<std::string>& system_names, const std::map<std::string, std::vector<float>>& all_ber_data, bool is_slave = false) {
-    if (is_slave) return; // Master server handles all file I/O
-    
+    if (is_slave) return;
+
     std::ofstream f("data/ber_simulation_results.csv");
     f << "Eb/No (dB)";
     for (const auto& name : system_names) f << "," << name;
@@ -454,7 +450,7 @@ double get_ebno_for_ber(const std::vector<float>& ebno_range, const std::vector<
             if (i == 0) return ebno_range[i];
             double x0 = ebno_range[i - 1]; double x1 = ebno_range[i];
             double y0 = ber_list[i - 1];   double y1 = ber_list[i];
-            if (y0 <= 0.0 || y1 <= 0.0 || y0 == y1) return x1;
+            if (y0 <= 0.0 || y1 <= 0.0 || std::abs(y0 - y1) < 1e-15) return x1;
             double f = (std::log10(target_ber) - std::log10(y0)) / (std::log10(y1) - std::log10(y0));
             return x0 + f * (x1 - x0);
         }
@@ -472,14 +468,13 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
         std::cout << "Slave overriding thread count to " << num_threads << std::endl;
     }
 
-    // Read max frames from environment (SIM_MAX_FRAMES). Default 10,000,000.
+    // Default max frames is 10,000,000
     unsigned long long SIM_MAX_FRAMES = 10000000ULL;
     const char* env_max = std::getenv("SIM_MAX_FRAMES");
     if (env_max) {
         try {
             SIM_MAX_FRAMES = std::stoull(std::string(env_max));
         } catch (...) {
-            // ignore and use default
         }
     }
 
@@ -545,21 +540,21 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
         std::vector<float> LLR_N;
         std::vector<float> LLR_N_depct;
         std::vector<int>   V_K;
-        
+
         std::vector<int>   X_N_rs;
         std::vector<int>   X_N_itl;
         std::vector<int>   V_K_itl;
         std::vector<int>   V_K_rs;
         std::vector<float> LLR_N_rs;
-        
+
         std::vector<float> CP;
     };
-    
+
     std::vector<ThreadBuffers> t_buffers(num_threads);
     for (int t = 0; t < num_threads; t++) {
         Chain& c = *chains[t];
         ThreadBuffers& b = t_buffers[t];
-        
+
         b.U_K.resize(c.K);
         b.X_N_enc.resize(c.N_enc);
         b.X_N.resize(c.N);
@@ -568,7 +563,7 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
         b.LLR_N.resize(c.N);
         b.LLR_N_depct.resize(c.N_enc);
         b.V_K.resize(c.K);
-        
+
         if (c.is_concat) {
             int N_rs = c.enc->get_N();
             b.X_N_rs.resize(N_rs * c.depth); b.X_N_itl.resize(N_rs * c.depth);
@@ -583,7 +578,7 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
         float ebno = ebno_range[ebno_idx];
         float esno = ebno + 10.0f * std::log10(R);
         float sigma = std::sqrt(1.0f / (2.0f * std::pow(10.0f, esno / 10.0f)));
-        
+
         CPUStats prev_cpu_stats = get_cpu_stats();
 
         std::atomic<unsigned long long> global_be(0);
@@ -593,25 +588,25 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
             Chain& c = *chains[t];
             ThreadBuffers& b = t_buffers[t];
             int last_printed_fra = 0;
-            
+
             unsigned long long local_be = 0;
             int local_fe = 0;
             int local_fra = 0;
-            
+
             std::fill(b.CP.begin(), b.CP.end(), sigma);
-            
-                 // Loop runs until across ALL threads we hit either 1000 errors or SIM_MAX_FRAMES frames
-                 while (global_fe.load(std::memory_order_relaxed) < 1000 && 
+
+                 // Loop until 1000 errors or SIM_MAX_FRAMES
+                 while (global_fe.load(std::memory_order_relaxed) < 1000 &&
                      global_fra.load(std::memory_order_relaxed) < SIM_MAX_FRAMES) {
                 c.src->generate(b.U_K.data());
-                
+
                 if (c.is_concat) {
                     int K_rs = c.enc->get_K();
                     int N_rs = c.enc->get_N();
                     for (int i = 0; i < c.depth; ++i) {
                         c.enc->encode(b.U_K.data() + i * K_rs, b.X_N_rs.data() + i * N_rs);
                     }
-                    // CCSDS Block Interleave (Transposing depth / symbols)
+                    // Block interleave
                     const int* __restrict__ rs_out = b.X_N_rs.data();
                     int* __restrict__ itl_in = b.X_N_itl.data();
                     for (int d = 0; d < c.depth; d++) {
@@ -619,7 +614,7 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
                             std::copy_n(rs_out + (d * 255 + b_idx) * 8, 8, itl_in + (b_idx * c.depth + d) * 8);
                         }
                     }
-                    // Encode Inner (Conv)
+                    // Encode inner
                     c.enc_inner->encode(b.X_N_itl.data(), b.X_N_enc.data());
                 } else if (c.name == "Uncoded") {
                     std::copy(b.U_K.begin(), b.U_K.end(), b.X_N_enc.begin());
@@ -631,7 +626,7 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
                         c.enc->encode(b.U_K.data() + i * K_enc, b.X_N_enc.data() + i * N_enc);
                     }
                 }
-                
+
                 if (!c.puncture_indices.empty()) {
                     for (size_t i = 0; i < c.puncture_indices.size(); ++i) {
                         b.X_N[i] = b.X_N_enc[c.puncture_indices[i]];
@@ -639,25 +634,25 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
                 } else {
                     std::copy(b.X_N_enc.begin(), b.X_N_enc.end(), b.X_N.begin());
                 }
-                
+
                 c.mdm->modulate(b.X_N.data(), b.X_N_mod.data());
                 c.chn->add_noise(b.CP.data(), b.X_N_mod.data(), b.Y_N.data());
                 c.mdm->demodulate(b.CP.data(), b.Y_N.data(), b.LLR_N.data());
-                
+
                 if (!c.depuncture_indices.empty()) {
-                    std::fill(b.LLR_N_depct.begin(), b.LLR_N_depct.end(), 0.0f); // Fast zeroing
+                    std::fill(b.LLR_N_depct.begin(), b.LLR_N_depct.end(), 0.0f);
                     for (size_t i = 0; i < c.depuncture_indices.size(); ++i) {
                         b.LLR_N_depct[c.depuncture_indices[i]] = b.LLR_N[i];
                     }
                 } else {
                     std::copy(b.LLR_N.begin(), b.LLR_N.end(), b.LLR_N_depct.begin());
                 }
-                
+
                 if (c.is_concat) {
-                    // Decode Inner (Viterbi)
+                    // Decode inner
                     c.dec_inner->decode_siho(b.LLR_N_depct.data(), b.V_K_itl.data());
-                    
-                    // CCSDS Block Deinterleave
+
+                    // Block deinterleave
                     const int* __restrict__ v_itl = b.V_K_itl.data();
                     int* __restrict__ v_rs = b.V_K_rs.data();
                     for (int d = 0; d < c.depth; d++) {
@@ -665,12 +660,12 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
                             std::copy_n(v_itl + (b_idx * c.depth + d) * 8, 8, v_rs + (d * 255 + b_idx) * 8);
                         }
                     }
-                    // Branchless Arithmetic for Pseudo-LLRs
-                    for(size_t i = 0; i < b.V_K_rs.size(); i++) { 
-                        b.LLR_N_rs[i] = 1.0f - 2.0f * (float)b.V_K_rs[i]; 
+                    // Convert to pseudo-LLR
+                    for(size_t i = 0; i < b.V_K_rs.size(); i++) {
+                        b.LLR_N_rs[i] = 1.0f - 2.0f * (float)b.V_K_rs[i];
                     }
-                    
-                    // Decode Outer (RS)
+
+                    // Decode outer
                     int K_rs = c.dec->get_K();
                     int N_rs = c.dec->get_N();
                     for (int i = 0; i < c.depth; ++i) {
@@ -688,31 +683,30 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
                         c.dec->decode_siho(b.LLR_N_depct.data() + i * N_dec, b.V_K.data() + i * K_dec);
                     }
                 }
-                
-                // Manual error check to strictly decouple threads from shared Module states
+
+                // Manual error check to avoid shared module state
                 int be = 0;
                 const int* __restrict__ u_k = b.U_K.data();
                 const int* __restrict__ v_k = b.V_K.data();
                 for (int i = 0; i < c.K; i++) {
                     be += (u_k[i] != v_k[i] ? 1 : 0);
                 }
-                int fe = (be > 0) ? 1 : 0;
-                
                 local_be += be;
-                local_fe += fe;
+                local_fe += (be > 0 ? 1 : 0);
+                local_be += be;
                 local_fra += 1;
-                
-                // Batch atomic updates to guarantee L3 isolation even at extremely high error rates
+
+                // Batch global counter updates
                 if (local_fra >= 100 || local_fe >= 15) {
                     global_be.fetch_add(local_be, std::memory_order_relaxed);
                     global_fe.fetch_add(local_fe, std::memory_order_relaxed);
                     global_fra.fetch_add(local_fra, std::memory_order_relaxed);
-                    
+
                     local_be = 0;
                     local_fe = 0;
                     local_fra = 0;
-                    
-                    // Only have thread 0 print to avoid terminal text overlapping
+
+                    // Only thread 0 prints to avoid overlapping
                     if (t == 0) {
                         int current_fra = global_fra.load(std::memory_order_relaxed);
                         if (current_fra - last_printed_fra >= 1000) {
@@ -720,7 +714,7 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
                             auto now = std::chrono::steady_clock::now();
                             auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - point_start_time).count();
                             double elapsed_exact = std::chrono::duration<double>(now - point_start_time).count();
-                            
+
                             CPUStats curr_cpu_stats = get_cpu_stats();
                             float cpu_util = 0.0f;
                             if (curr_cpu_stats.total_time > prev_cpu_stats.total_time) {
@@ -730,11 +724,11 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
 
                             int fps = (elapsed_exact > 0.0) ? (int)(current_fra / elapsed_exact) : 0;
 
-                            std::cout << "\r    ~> Time: " 
-                                      << std::setfill('0') << std::setw(2) << (elapsed / 60) << ":" 
+                            std::cout << "\r    ~> Time: "
+                                      << std::setfill('0') << std::setw(2) << (elapsed / 60) << ":"
                                       << std::setfill('0') << std::setw(2) << (elapsed % 60) << std::setfill(' ')
-                                      << " | Frames: " << current_fra 
-                                      << " / " << SIM_MAX_FRAMES << " | FE: " << global_fe.load(std::memory_order_relaxed) << " / 1000" 
+                                      << " | Frames: " << current_fra
+                                      << " / " << SIM_MAX_FRAMES << " | FE: " << global_fe.load(std::memory_order_relaxed) << " / 1000"
                                       << " | FPS: " << std::left << std::setw(7) << fps << std::right
                                       << " | CPU: " << std::fixed << std::setprecision(1) << std::setw(5) << cpu_util << "%"
                                       << "   " << std::flush;
@@ -742,7 +736,7 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
                     }
                 }
             }
-            
+
             // Flush any remaining local frames when the loop terminates
             if (local_fra > 0) {
                 global_be.fetch_add(local_be, std::memory_order_relaxed);
@@ -759,7 +753,7 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
             th.join();
         }
 
-        // Clear the live progress line before printing the final result
+        // Clear the live progress line
         std::cout << "\r                                                                                                            \r";
 
         auto point_end_time = std::chrono::steady_clock::now();
@@ -767,19 +761,18 @@ void run_simulation(SystemBuilder& builder, const std::vector<float>& ebno_range
 
         float ber = (double)global_be.load() / ((double)global_fra * (double)master.K);
         float fer = (float)global_fe / (float)global_fra;
-        
-        // Save progress dynamically
+
         all_ber_data[master.name].push_back(ber);
         save_progress(ebno_range, system_names, all_ber_data, is_slave);
 
-        // Print results dynamically per Eb/No
+        // Print final result for Eb/No
         std::cout << std::fixed << std::setprecision(1) << std::setw(6) << ebno << "     | "
                   << std::scientific << std::setprecision(4) << ber << " | "
                   << std::scientific << std::setprecision(4) << fer << " | "
                   << std::left << std::setw(16) << global_fra << " | "
-                  << std::right << std::setfill('0') << std::setw(2) << (elapsed / 60) << ":" 
+                  << std::right << std::setfill('0') << std::setw(2) << (elapsed / 60) << ":"
                   << std::setfill('0') << std::setw(2) << (elapsed % 60) << std::setfill(' ') << std::endl;
-                  
+
         if (ber == 0.0f && global_fra >= SIM_MAX_FRAMES) {
              std::cout << "  Zero errors encountered. Stopping early." << std::endl;
              int points_skipped = ebno_range.size() - all_ber_data[master.name].size();
@@ -796,7 +789,7 @@ int main(int argc, char** argv) {
     std::string target_sys = "";
     float target_ebno = -100.0f;
     bool is_slave = false;
-    int num_threads_arg = 0; // 0 means auto-detect
+    int num_threads_arg = 0;
 
     if (argc >= 3) {
         target_sys = argv[1];
@@ -812,12 +805,12 @@ int main(int argc, char** argv) {
 
     auto total_start_time = std::chrono::steady_clock::now();
 
-    // Generate EBNO_DB_RANGE: 0 to 12 in 0.1 steps
+    // 0 to 12 in 0.1 steps
     std::vector<float> ebno_range;
     for (int i = 0; i <= 120; i += 1) {
         ebno_range.push_back(i / 10.0f);
     }
-    
+
     std::vector<std::string> system_names;
     std::map<std::string, std::vector<float>> all_ber_data;
     std::map<std::string, float> system_rates;
@@ -828,7 +821,7 @@ int main(int argc, char** argv) {
 
     std::vector<std::unique_ptr<SystemBuilder>> system_registry;
     system_registry.push_back(std::make_unique<Uncoded_System>());
-    
+
     std::vector<std::string> rates = {"1/2", "2/3", "3/4", "5/6", "7/8"};
     for (const auto& r : rates) {
         system_registry.push_back(std::make_unique<Conv_System>(r));
@@ -838,37 +831,32 @@ int main(int argc, char** argv) {
     for (int d : depths) {
         system_registry.push_back(std::make_unique<RS_System>(d));
     }
-    
+
     for (const auto& r : rates) {
         for (int d : depths) {
             system_registry.push_back(std::make_unique<Concat_System>(r, d));
         }
     }
 
-    // Run the loop
     for (auto& sys_builder : system_registry) {
-        // If running as a cluster slave, skip systems that don't match the target
         if (!target_sys.empty()) {
             auto temp_chain = sys_builder->build(0);
             if (temp_chain->name != target_sys) continue;
         }
-        
-        // If a specific Eb/No is requested, only simulate that one point
+
         std::vector<float> run_range = ebno_range;
         if (target_ebno > -99.0f) run_range = {target_ebno};
-        
+
         run_simulation(*sys_builder, run_range, system_names, all_ber_data, system_rates, is_slave, num_threads_arg);
     }
 
     auto total_end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> total_elapsed = total_end_time - total_start_time;
 
-    std::cout << "\nSimulation complete!" << std::endl;
-    std::cout << "Total simulation time: " << std::fixed << std::setprecision(2) << total_elapsed.count() << "s\n" << std::endl;
-    
-    // Generate Summary Report
-    if (!target_sys.empty()) return 0; // Slaves don't need to generate the summary text file
-    
+    std::cout << "\nTotal time: " << std::fixed << std::setprecision(2) << total_elapsed.count() << "s\n" << std::endl;
+
+    if (!target_sys.empty()) return 0;
+
     std::stringstream report;
     report << std::string(105, '=') << "\n";
     std::string title = "FEC PERFORMANCE SUMMARY & BPSK CAPACITY LIMITS";
@@ -890,14 +878,14 @@ int main(int argc, char** argv) {
     for (const auto& name : system_names) {
         if (all_ber_data.find(name) == all_ber_data.end()) continue;
         const auto& ber_list = all_ber_data[name];
-        
+
         double ebno_3    = get_ebno_for_ber(ebno_range, ber_list, 1e-3);
         double ebno_5    = get_ebno_for_ber(ebno_range, ber_list, 1e-5);
         double ebno_free = get_ebno_for_ber(ebno_range, ber_list, 1.01e-7);
 
         double limit = std::numeric_limits<double>::infinity();
         if (system_rates.find(name) != system_rates.end()) limit = calculate_exact_bpsk_shannon_limit(system_rates[name]);
-        
+
         std::string s_gap = "N/A";
         if (ebno_5 > -100.0 && limit != std::numeric_limits<double>::infinity()) s_gap = fmt_db(ebno_5 - limit);
 
@@ -911,6 +899,6 @@ int main(int argc, char** argv) {
     report << std::string(105, '=') << "\n\n";
     std::cout << "\n" << report.str();
     std::ofstream("data/ber_summary_report.txt") << report.str();
-    
+
     return 0;
 }
